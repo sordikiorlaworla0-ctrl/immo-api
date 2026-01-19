@@ -1,0 +1,116 @@
+// Schema Prisma pour l'API de scraping immobilier
+// Documentation: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // Changer en "postgresql" pour production
+  url      = env("DATABASE_URL")
+}
+
+// Utilisateurs de l'API
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  apiKeys      ApiKey[]
+  usageLogs    UsageLog[]
+  subscription Subscription?
+}
+
+// Clés API pour l'authentification
+model ApiKey {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String   @default("Default")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  lastUsed  DateTime?
+
+  usageLogs UsageLog[]
+}
+
+// Plans d'abonnement
+model Plan {
+  id            String   @id @default(cuid())
+  name          String   @unique // free, starter, pro, enterprise
+  displayName   String
+  price         Float    // Prix en euros
+  requestsLimit Int      // Nombre de requêtes par mois
+  rateLimit     Int      // Requêtes par minute
+  features      String   // JSON des features
+  createdAt     DateTime @default(now())
+
+  subscriptions Subscription[]
+}
+
+// Abonnements utilisateurs
+model Subscription {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId           String
+  plan             Plan      @relation(fields: [planId], references: [id])
+  requestsUsed     Int       @default(0)
+  periodStart      DateTime  @default(now())
+  periodEnd        DateTime
+  stripeCustomerId String?
+  stripeSubId      String?
+  status           String    @default("active") // active, canceled, past_due
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// Logs d'utilisation pour tracking
+model UsageLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKeyId   String
+  apiKey     ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  endpoint   String
+  method     String
+  statusCode Int
+  duration   Int      // en millisecondes
+  createdAt  DateTime @default(now())
+}
+
+// Cache des annonces scrapées
+model Property {
+  id           String   @id @default(cuid())
+  externalId   String   @unique // ID unique de la source
+  source       String   // leboncoin, seloger, etc.
+  title        String
+  description  String?
+  price        Float?
+  pricePerSqm  Float?   // Prix au m²
+  surface      Float?   // Surface en m²
+  rooms        Int?     // Nombre de pièces
+  bedrooms     Int?     // Nombre de chambres
+  propertyType String?  // appartement, maison, terrain, etc.
+  transactionType String // vente, location
+  city         String?
+  postalCode   String?
+  department   String?
+  region       String?
+  latitude     Float?
+  longitude    Float?
+  imageUrls    String?  // JSON array
+  url          String   // URL de l'annonce originale
+  publishedAt  DateTime?
+  scrapedAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([city])
+  @@index([postalCode])
+  @@index([propertyType])
+  @@index([transactionType])
+  @@index([price])
+}
