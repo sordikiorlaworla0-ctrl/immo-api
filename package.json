@@ -4,7 +4,7 @@
   "description": "API de scraping immobilier - Données publiques françaises",
   "main": "src/index.js",
   "type": "module",
-  "scripts": {"postinstall": "npx prisma generate",
+  "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "db:generate": "prisma generate",
